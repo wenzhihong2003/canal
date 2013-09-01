@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>com.alibaba.otter</groupId>
 		<artifactId>canal</artifactId>
-		<version>1.0.7-SNAPSHOT</version>
+		<version>1.0.9-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	<groupId>com.alibaba.otter</groupId>
@@ -27,6 +27,12 @@
 					<archive>
 						<addMavenDescriptor>true</addMavenDescriptor>
 					</archive>
+					<excludes>
+						<exclude>**/logback.xml</exclude>
+						<exclude>**/canal.properties</exclude>
+						<exclude>**/spring/**</exclude>
+						<exclude>**/example/**</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 
