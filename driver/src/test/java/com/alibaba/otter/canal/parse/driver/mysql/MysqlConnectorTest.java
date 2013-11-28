@@ -18,8 +18,10 @@ public class MysqlConnectorTest {
                                                       "ottermysql");
         try {
             connector.connect();
-            MysqlQueryExecutor exector = new MysqlQueryExecutor(connector);
-            ResultSetPacket result = exector.query("desc test.lj_table1");
+            MysqlQueryExecutor executor = new MysqlQueryExecutor(connector);
+            ResultSetPacket result = executor.query("show variables like '%char%';");
+            System.out.println(result);
+            result = executor.query("select * from test.test1");
             System.out.println(result);
         } catch (IOException e) {
             Assert.fail(e.getMessage());
@@ -32,15 +34,15 @@ public class MysqlConnectorTest {
         }
     }
 
-    @Test
+    //    @Test
     public void testUpdate() {
 
         MysqlConnector connector = new MysqlConnector(new InetSocketAddress("10.20.144.15", 3306), "ottermysql",
                                                       "ottermysql");
         try {
             connector.connect();
-            MysqlUpdateExecutor exector = new MysqlUpdateExecutor(connector);
-            exector.update("update otter1.otter_stability1 set timestamp_values = now() where id < 5000010");
+            MysqlUpdateExecutor executor = new MysqlUpdateExecutor(connector);
+            executor.update("insert into test.test2(id,name,score,text_value) values(null,'中文1',10,'中文2')");
         } catch (IOException e) {
             Assert.fail(e.getMessage());
         } finally {

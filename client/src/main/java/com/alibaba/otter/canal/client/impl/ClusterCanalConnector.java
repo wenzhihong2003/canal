@@ -56,10 +56,11 @@ public class ClusterCanalConnector implements CanalConnector {
                     logger.warn("failed to connect to:{} after retry {} times", nextAddress, times);
                     currentConnector.disconnect();
                     currentConnector = null;
-                    // retry for #retryTimes for each node when trying to connect to it.
+                    // retry for #retryTimes for each node when trying to
+                    // connect to it.
                     times = times + 1;
                     if (times >= retryTimes) {
-                        break;
+                        throw new CanalClientException(e);
                     } else {
                         // fixed issue #55，增加sleep控制，避免重试connect时cpu使用过高
                         try {
@@ -83,6 +84,10 @@ public class ClusterCanalConnector implements CanalConnector {
             currentConnector = null;
         }
     }
+    
+    public void subscribe() throws CanalClientException {
+        subscribe(""); // 传递空字符即可
+    }
 
     public void subscribe(String filter) throws CanalClientException {
         int times = 0;
@@ -91,8 +96,9 @@ public class ClusterCanalConnector implements CanalConnector {
                 currentConnector.subscribe(filter);
                 return;
             } catch (Throwable t) {
-                logger.warn("something goes wrong when subscribing from server:{}\n{}", currentConnector.getAddress(),
-                            ExceptionUtils.getFullStackTrace(t));
+                logger.warn("something goes wrong when subscribing from server:{}\n{}",
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -110,7 +116,8 @@ public class ClusterCanalConnector implements CanalConnector {
                 return;
             } catch (Throwable t) {
                 logger.warn("something goes wrong when unsubscribing from server:{}\n{}",
-                            currentConnector.getAddress(), ExceptionUtils.getFullStackTrace(t));
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -126,8 +133,9 @@ public class ClusterCanalConnector implements CanalConnector {
                 Message msg = currentConnector.get(batchSize);
                 return msg;
             } catch (Throwable t) {
-                logger.warn("something goes wrong when getting data from server:{}\n{}", currentConnector.getAddress(),
-                            ExceptionUtils.getFullStackTrace(t));
+                logger.warn("something goes wrong when getting data from server:{}\n{}",
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -143,8 +151,9 @@ public class ClusterCanalConnector implements CanalConnector {
                 Message msg = currentConnector.get(batchSize, timeout, unit);
                 return msg;
             } catch (Throwable t) {
-                logger.warn("something goes wrong when getting data from server:{}\n{}", currentConnector.getAddress(),
-                            ExceptionUtils.getFullStackTrace(t));
+                logger.warn("something goes wrong when getting data from server:{}\n{}",
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -161,7 +170,8 @@ public class ClusterCanalConnector implements CanalConnector {
                 return msg;
             } catch (Throwable t) {
                 logger.warn("something goes wrong when getWithoutAck data from server:{}\n{}",
-                            currentConnector.getAddress(), ExceptionUtils.getFullStackTrace(t));
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -178,7 +188,8 @@ public class ClusterCanalConnector implements CanalConnector {
                 return msg;
             } catch (Throwable t) {
                 logger.warn("something goes wrong when getWithoutAck data from server:{}\n{}",
-                            currentConnector.getAddress(), ExceptionUtils.getFullStackTrace(t));
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -195,7 +206,8 @@ public class ClusterCanalConnector implements CanalConnector {
                 return;
             } catch (Throwable t) {
                 logger.warn("something goes wrong when rollbacking data from server:{}\n{}",
-                            currentConnector.getAddress(), ExceptionUtils.getFullStackTrace(t));
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -212,7 +224,8 @@ public class ClusterCanalConnector implements CanalConnector {
                 return;
             } catch (Throwable t) {
                 logger.warn("something goes wrong when rollbacking data from server:{}\n{}",
-                            currentConnector.getAddress(), ExceptionUtils.getFullStackTrace(t));
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -229,8 +242,9 @@ public class ClusterCanalConnector implements CanalConnector {
                 currentConnector.ack(batchId);
                 return;
             } catch (Throwable t) {
-                logger.warn("something goes wrong when acking data from server:{}\n{}", currentConnector.getAddress(),
-                            ExceptionUtils.getFullStackTrace(t));
+                logger.warn("something goes wrong when acking data from server:{}\n{}",
+                    currentConnector.getAddress(),
+                    ExceptionUtils.getFullStackTrace(t));
                 times++;
                 restart();
                 logger.info("restart the connector for next round retry.");
@@ -250,7 +264,8 @@ public class ClusterCanalConnector implements CanalConnector {
         connect();
     }
 
-    // ============================= setter / getter ============================
+    // ============================= setter / getter
+    // ============================
 
     public String getUsername() {
         return username;
@@ -303,5 +318,7 @@ public class ClusterCanalConnector implements CanalConnector {
     public SimpleCanalConnector getCurrentConnector() {
         return currentConnector;
     }
+
+    
 
 }

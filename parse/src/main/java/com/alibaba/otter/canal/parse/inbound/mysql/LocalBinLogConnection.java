@@ -8,6 +8,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.alibaba.otter.canal.parse.exception.CanalParseException;
 import com.alibaba.otter.canal.parse.inbound.ErosaConnection;
 import com.alibaba.otter.canal.parse.inbound.SinkFunction;
 import com.alibaba.otter.canal.parse.inbound.mysql.local.BinLogFileQueue;
@@ -82,15 +83,25 @@ public class LocalBinLogConnection implements ErosaConnection {
             context.setLogPosition(new LogPosition(binlogfilename, binlogPosition));
             while (running) {
                 boolean needContinue = true;
+                LogEvent event;
                 while (fetcher.fetch()) {
-                    LogEvent event;
-                    do {
-                        event = decoder.decode(fetcher, context);
-                        if (event != null && !func.sink(event)) {
-                            needContinue = false;
-                            break;
-                        }
-                    } while (event != null);
+                    event = decoder.decode(fetcher, context);
+                    if (event == null) {
+                        throw new CanalParseException("parse failed");
+                    }
+
+                    if (!func.sink(event)) {
+                        needContinue = false;
+                        break;
+                    }
+
+                    // do {
+                    // event = decoder.decode(fetcher, context);
+                    // if (event != null && !func.sink(event)) {
+                    // needContinue = false;
+                    // break;
+                    // }
+                    // } while (event != null);
                 }
 
                 if (needContinue) {// 读取下一个
@@ -143,31 +154,34 @@ public class LocalBinLogConnection implements ErosaConnection {
             while (running) {
                 boolean needContinue = true;
                 String lastXidLogFilename = current.getName();
-                long lastXidLogFileOffset = 4;
-                long currentOffset = 0L;
+                long lastXidLogFileOffset = 0;
 
                 binlogFilename = lastXidLogFilename;
                 binlogFileOffset = lastXidLogFileOffset;
-                while (fetcher.fetch()) {
+                L: while (fetcher.fetch()) {
                     LogEvent event;
                     do {
                         event = decoder.decode(fetcher, context);
-                        if (timestampSeconds > event.getWhen()) {
+                        if (event != null) {
+                            if (event.getWhen() > timestampSeconds) {
+                                break L;
+                            }
+
                             needContinue = false;
-                            break;
+                            if (LogEvent.QUERY_EVENT == event.getHeader().getType()) {
+                                if (StringUtils.endsWithIgnoreCase(((QueryLogEvent) event).getQuery(), "BEGIN")) {
+                                    binlogFilename = lastXidLogFilename;
+                                    binlogFileOffset = lastXidLogFileOffset;
+                                } else if (StringUtils.endsWithIgnoreCase(((QueryLogEvent) event).getQuery(), "COMMIT")) {
+                                    lastXidLogFilename = current.getName();
+                                    lastXidLogFileOffset = event.getLogPos();
+                                }
+                            } else if (LogEvent.XID_EVENT == event.getHeader().getType()) {
+                                lastXidLogFilename = current.getName();
+                                lastXidLogFileOffset = event.getLogPos();
+                            }
                         }
                     } while (event != null);
-
-                    currentOffset += event.getEventLen();
-                    if (LogEvent.QUERY_EVENT == event.getHeader().getType()) {
-                        if (StringUtils.endsWithIgnoreCase(((QueryLogEvent) event).getQuery(), "BEGIN")) {
-                            binlogFilename = lastXidLogFilename;
-                            binlogFileOffset = lastXidLogFileOffset;
-                        } else if (LogEvent.XID_EVENT == event.getHeader().getType()) {
-                            lastXidLogFilename = current.getName();
-                            lastXidLogFileOffset = currentOffset;
-                        }
-                    }
                 }
 
                 if (needContinue) {// 读取下一个

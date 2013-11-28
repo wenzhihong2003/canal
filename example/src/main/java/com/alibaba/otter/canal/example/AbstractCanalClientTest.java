@@ -108,8 +108,7 @@ public class AbstractCanalClientTest {
             try {
                 MDC.put("destination", destination);
                 connector.connect();
-                connector.subscribe("");
-                connector.rollback();
+                connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(batchSize); // 获取指定数量的数据
                     long batchId = message.getId();
@@ -127,6 +126,8 @@ public class AbstractCanalClientTest {
                     connector.ack(batchId); // 提交确认
                     // connector.rollback(batchId); // 处理失败, 回滚数据
                 }
+            } catch (Exception e) {
+                logger.error("process error!", e);
             } finally {
                 connector.disconnect();
                 MDC.remove("destination");
@@ -175,9 +176,9 @@ public class AbstractCanalClientTest {
                     }
                     // 打印事务头信息，执行的线程id，事务耗时
                     logger.info(transaction_format,
-                                new Object[] { entry.getHeader().getLogfileName(),
-                                        String.valueOf(entry.getHeader().getLogfileOffset()),
-                                        String.valueOf(entry.getHeader().getExecuteTime()), String.valueOf(delayTime) });
+                        new Object[] { entry.getHeader().getLogfileName(),
+                                String.valueOf(entry.getHeader().getLogfileOffset()),
+                                String.valueOf(entry.getHeader().getExecuteTime()), String.valueOf(delayTime) });
                     logger.info(" BEGIN ----> Thread id: {}", begin.getThreadId());
                 } else if (entry.getEntryType() == EntryType.TRANSACTIONEND) {
                     TransactionEnd end = null;
@@ -190,40 +191,43 @@ public class AbstractCanalClientTest {
                     logger.info("----------------\n");
                     logger.info(" END ----> transaction id: {}", end.getTransactionId());
                     logger.info(transaction_format,
-                                new Object[] { entry.getHeader().getLogfileName(),
-                                        String.valueOf(entry.getHeader().getLogfileOffset()),
-                                        String.valueOf(entry.getHeader().getExecuteTime()), String.valueOf(delayTime) });
+                        new Object[] { entry.getHeader().getLogfileName(),
+                                String.valueOf(entry.getHeader().getLogfileOffset()),
+                                String.valueOf(entry.getHeader().getExecuteTime()), String.valueOf(delayTime) });
                 }
 
                 continue;
             }
 
-            RowChange rowChage = null;
-            try {
-                rowChage = RowChange.parseFrom(entry.getStoreValue());
-            } catch (Exception e) {
-                throw new RuntimeException("parse event has an error , data:" + entry.toString(), e);
-            }
+            if (entry.getEntryType() == EntryType.ROWDATA) {
+                RowChange rowChage = null;
+                try {
+                    rowChage = RowChange.parseFrom(entry.getStoreValue());
+                } catch (Exception e) {
+                    throw new RuntimeException("parse event has an error , data:" + entry.toString(), e);
+                }
 
-            EventType eventType = rowChage.getEventType();
+                EventType eventType = rowChage.getEventType();
 
-            logger.info(row_format,
-                        new Object[] { entry.getHeader().getLogfileName(),
-                                String.valueOf(entry.getHeader().getLogfileOffset()),
-                                entry.getHeader().getSchemaName(), entry.getHeader().getTableName(), eventType,
-                                String.valueOf(entry.getHeader().getExecuteTime()), String.valueOf(delayTime) });
+                logger.info(row_format,
+                    new Object[] { entry.getHeader().getLogfileName(),
+                            String.valueOf(entry.getHeader().getLogfileOffset()), entry.getHeader().getSchemaName(),
+                            entry.getHeader().getTableName(), eventType,
+                            String.valueOf(entry.getHeader().getExecuteTime()), String.valueOf(delayTime) });
 
-            if (eventType == EventType.QUERY || rowChage.getIsDdl()) {
-                logger.info(" sql ----> " + rowChage.getSql() + SEP);
-            }
+                if (eventType == EventType.QUERY || rowChage.getIsDdl()) {
+                    logger.info(" sql ----> " + rowChage.getSql() + SEP);
+                    continue;
+                }
 
-            for (RowData rowData : rowChage.getRowDatasList()) {
-                if (eventType == EventType.DELETE) {
-                    printColumn(rowData.getBeforeColumnsList());
-                } else if (eventType == EventType.INSERT) {
-                    printColumn(rowData.getAfterColumnsList());
-                } else {
-                    printColumn(rowData.getAfterColumnsList());
+                for (RowData rowData : rowChage.getRowDatasList()) {
+                    if (eventType == EventType.DELETE) {
+                        printColumn(rowData.getBeforeColumnsList());
+                    } else if (eventType == EventType.INSERT) {
+                        printColumn(rowData.getAfterColumnsList());
+                    } else {
+                        printColumn(rowData.getAfterColumnsList());
+                    }
                 }
             }
         }
@@ -233,6 +237,7 @@ public class AbstractCanalClientTest {
         for (Column column : columns) {
             StringBuilder builder = new StringBuilder();
             builder.append(column.getName() + " : " + column.getValue());
+            builder.append("    type=" + column.getMysqlType());
             if (column.getUpdated()) {
                 builder.append("    update=" + column.getUpdated());
             }

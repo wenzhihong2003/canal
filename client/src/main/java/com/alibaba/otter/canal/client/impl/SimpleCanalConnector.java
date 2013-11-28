@@ -158,6 +158,10 @@ public class SimpleCanalConnector implements CanalConnector {
             channel = null;
         }
     }
+    
+    public void subscribe() throws CanalClientException {
+        subscribe(""); // 传递空字符即可
+    }
 
     public void subscribe(String filter) throws CanalClientException {
         waitClientRunning();
@@ -294,7 +298,7 @@ public class SimpleCanalConnector implements CanalConnector {
             readHeader.clear();
             read(channel, readHeader);
             int bodyLen = readHeader.getInt(0);
-            ByteBuffer bodyBuf = ByteBuffer.allocate(bodyLen);
+            ByteBuffer bodyBuf = ByteBuffer.allocate(bodyLen).order(ByteOrder.BIG_ENDIAN);
             read(channel, bodyBuf);
             return bodyBuf.array();
         }
@@ -391,5 +395,6 @@ public class SimpleCanalConnector implements CanalConnector {
     public void setRollbackOnDisConnect(boolean rollbackOnDisConnect) {
         this.rollbackOnDisConnect = rollbackOnDisConnect;
     }
+
 
 }
